@@ -212,6 +212,7 @@ if __name__ == "__main__":
     if sys_arg.local_rank == 0:
         logging.info("Preparing trainer ...")
     
+    #
     metric = load_metric("rouge") 
     
     def compute_metrics(eval_pred):
@@ -230,6 +231,22 @@ if __name__ == "__main__":
         )
 
         result = {key: value.mid.fmeasure * 100 for key, value in result.items()}
+        
+        # save Excel file
+        if torch.cuda.current_device() == 0:
+            if os.path.exists("generated.xlsx"):
+                data = pd.read_excel("generated.xlsx")
+                data.drop("Unnamed: 0", axis=1, inplace=True)
+                pd.concat(
+                    [data, pd.DataFrame(np.array(decoded_preds).reshape(-1, 1))], axis=1
+                ).to_excel("generated.xlsx")
+
+            else:
+                df = pd.DataFrame(columns=["target", "output"])
+                df["target"] = decoded_labels
+                df["output"] = decoded_preds
+                df.to_excel("generated.xlsx")
+                
         return result
 
     trainer = Seq2SeqTrainer(
