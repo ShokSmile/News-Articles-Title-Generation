@@ -2,3 +2,6 @@ rouge_score
 transformers
 peft
 deepspeed
+datasets
+accelerate
+bitsandbytes
