@@ -41,6 +41,9 @@ if __name__ == "__main__":
         "--load_in_8bit", type=bool, default=True, help="If use 8bit quantization"
     )
     parser.add_argument(
+        "--load_in_4bit", type=bool, default=False, help="If use 8bit quantization"
+    )
+    parser.add_argument(
         "--model_checkpoint", type=str, default="t5-small", help="Path to model checkpoint"
     )
     parser.add_argument("--peft", type=bool, default=True, help="Use PEFT")
@@ -137,7 +140,7 @@ if __name__ == "__main__":
     
 
     train_data = TitleDataset(tokenizer=tokenizer,
-                              data_path=sys_arg.training_data_path)
+                              data_path=sys_arg.train_data_path)
     
     val_data = TitleDataset(tokenizer=tokenizer, 
                               data_path=sys_arg.validation_data_path)
@@ -183,29 +186,23 @@ if __name__ == "__main__":
     if sys_arg.peft:
         if sys_arg.pretrained_peft:
             model = load_pretrained_peft_model(
-                path_to_model_weights=sys_arg.path_to_model_weights,
-                model_type=sys_arg.model_type,
+                path_to_model_weights=sys_arg.model_checkpoint,
                 load_in_8bit=sys_arg.load_in_8bit,
                 load_in_4bit=sys_arg.load_in_4bit,
-                model_max_length=sys_arg.model_max_length,
                 path_to_peft_weights=sys_arg.path_to_peft_weights,
             )
         else:
             model = load_peft_model(
-                path_to_weights=sys_arg.path_to_model_weights,
-                model_type=sys_arg.model_type,
+                path_to_weights=sys_arg.model_checkpoint,
                 load_in_8bit=sys_arg.load_in_8bit,
                 load_in_4bit=sys_arg.load_in_4bit,
-                model_max_length=sys_arg.model_max_length,
             )
 
     else:
         model = load_ordinary_model(
-            path_to_model_weights=sys_arg.path_to_model_weights,
-            model_type=sys_arg.model_type,
+            path_to_model_weights=sys_arg.model_checkpoint,
             load_in_8bit=sys_arg.load_in_8bit,
-            load_in_4bit=sys_arg.load_in_4bit,
-            model_max_length=sys_arg.model_max_length,
+            load_in_4bit=sys_arg.load_in_4bit
         )
         
     if sys_arg.local_rank == 0:

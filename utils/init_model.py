@@ -3,7 +3,6 @@ from peft import (
     LoraConfig,
     TaskType,
     get_peft_model,
-    prepare_model_for_int8_training,
     PeftModel,
     PeftConfig,
 )
@@ -18,8 +17,7 @@ def load_ordinary_model(
 
     model = T5ForConditionalGeneration.from_pretrained(path_to_model_weights, 
                                                        load_in_4bit=load_in_4bit, 
-                                                       load_in_8bit=load_in_8bit, 
-                                                       model_max_length=model_max_length)
+                                                       load_in_8bit=load_in_8bit)
 
     return model
 
@@ -37,7 +35,6 @@ def load_peft_model(
         path_to_model_weights=path_to_weights,
         load_in_8bit=load_in_8bit,
         load_in_4bit=load_in_4bit,
-        model_max_length=model_max_length,
     )
 
     if LoRA:
@@ -64,7 +61,6 @@ def load_pretrained_peft_model(
     path_to_peft_weights: str,
     load_in_8bit: bool = False,
     load_in_4bit: bool = False,
-    model_max_length=1024,
 ) -> PeftModel:
     
 
@@ -72,9 +68,7 @@ def load_pretrained_peft_model(
         load_ordinary_model(
             path_to_model_weights=path_to_model_weights,
             load_in_8bit=load_in_8bit,
-            load_in_4bit=load_in_4bit,
-            model_max_length=model_max_length,
-        ),
+            load_in_4bit=load_in_4bit),
         path_to_peft_weights,
         is_trainable=True,
     )
