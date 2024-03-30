@@ -99,7 +99,7 @@ if __name__ == "__main__":
         "--name_of_wandb_project", type=str, default="INF582 2024 - News Articles Title Generation"
     )
     parser.add_argument(
-        "--model_max_length", type=int, default=1024, help="Model input max length"
+        "--model_max_length", type=int, default=712, help="Model input max length"
     )
     parser.add_argument("--bf16", type=bool, default=False, help="Use bf16 type in case of Ampere gpu architecture")
     parser.add_argument("--model_name", type=str, default="t5-small", help="Model name")
