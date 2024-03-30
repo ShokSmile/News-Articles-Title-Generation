@@ -19,7 +19,7 @@ import logging
 ## parameters
 SPECIAL_TOKEN = "<|TG|>"
 
-
+os.TOKENIZERS_PARALLELISM = False
 
 
 
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--train_data_path",
         type=str,
-        default="challenge_files/data/validation.csv",
+        default="challenge_files/data/train.csv",
         help="Path to unpreprocessed training data",
     )
     parser.add_argument(

@@ -5,3 +5,5 @@ deepspeed
 datasets
 accelerate
 bitsandbytes
+wandb
+mpi4py
