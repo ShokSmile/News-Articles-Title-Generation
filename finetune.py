@@ -42,7 +42,7 @@ if __name__ == "__main__":
         "--load_in_8bit", type=bool, default=True, help="If use 8bit quantization"
     )
     parser.add_argument(
-        "--load_in_4bit", type=bool, default=False, help="If use 8bit quantization"
+        "--load_in_4bit", type=bool, default=False, help="If use 4bit quantization"
     )
     parser.add_argument(
         "--model_checkpoint", type=str, default="t5-small", help="Path to model checkpoint"
@@ -178,7 +178,7 @@ if __name__ == "__main__":
         load_best_model_at_end=True,
         report_to="wandb",
         gradient_checkpointing=sys_arg.gradient_checkpointing,
-        metric_for_best_model="rouge",
+        metric_for_best_model="eval_rougeL",
         seed=7,
         data_seed=7,
         # deepspeed="default_offload_opt_param.json", only for multigpus
