@@ -23,6 +23,7 @@ os.TOKENIZERS_PARALLELISM = False
 
 
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Model finetuning for kaggle competition")
     parser.add_argument(
@@ -179,7 +180,7 @@ if __name__ == "__main__":
         metric_for_best_model="rouge",
         seed=7,
         data_seed=7,
-        deepspeed="default_offload_opt_param.json",
+        # deepspeed="default_offload_opt_param.json", only for multigpus
     )
     
     if sys_arg.local_rank == 0:
@@ -209,6 +210,25 @@ if __name__ == "__main__":
         
     if sys_arg.local_rank == 0:
         logging.info("Preparing trainer ...")
+    
+    metric = load_metric("rouge") 
+    def compute_metrics(eval_pred):
+        predictions, labels = eval_pred
+
+        predictions = np.where(predictions != -100, predictions, tokenizer.pad_token_id)
+        decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True)
+
+        # Replace -100 in the labels as we can't decode them.
+        labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
+        decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+
+        # Compute ROUGE scores
+        result = metric.compute(
+            predictions=decoded_preds, references=decoded_labels, use_stemmer=True
+        )
+
+        result = {key: value.mid.fmeasure * 100 for key, value in result.items()}
+        return result
 
     trainer = Seq2SeqTrainer(
         model=model,
@@ -216,7 +236,8 @@ if __name__ == "__main__":
         train_dataset=train_data,
         eval_dataset=val_data,
         tokenizer=tokenizer,
-        data_collator=data_collator
+        data_collator=data_collator, 
+        compute_metrics=compute_metrics
     )
     
     trainer.train()
