@@ -179,7 +179,7 @@ if __name__ == "__main__":
         metric_for_best_model="rouge",
         seed=7,
         data_seed=7,
-        # deepspeed="default_offload_opt_param.json",
+        deepspeed="default_offload_opt_param.json",
     )
     
     if sys_arg.local_rank == 0:
