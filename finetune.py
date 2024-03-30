@@ -82,7 +82,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--hub_token", type=str, default="", help="HF hub token"
     )
-    parser.add_argument("--batch_size", type=int, default=1, help="Size of batch")
+    parser.add_argument("--batch_size_train", type=int, default=1, help="Size of batch for training")
+    parser.add_argument("--batch_size_val", type=int, default=1, help="Size of batch for validation")
     parser.add_argument(
         "--gradient_checkpointing",
         type=bool,
@@ -165,14 +166,14 @@ if __name__ == "__main__":
         hub_token=sys_arg.hub_token,
         save_steps=sys_arg.eval_steps,
         learning_rate=4e-5,
-        per_device_train_batch_size=sys_arg.batch_size,
-        per_device_eval_batch_size=sys_arg.batch_size,
+        per_device_train_batch_size=sys_arg.batch_size_train,
+        per_device_eval_batch_size=sys_arg.batch_size_val,
         weight_decay=0.01,
         save_total_limit=1,
         num_train_epochs=sys_arg.nb_epochs,
         predict_with_generate=sys_arg.predict_with_generate,
         group_by_length=True,
-        generation_max_length=512,
+        generation_max_length=100,
         bf16=sys_arg.bf16,
         load_best_model_at_end=True,
         report_to="wandb",
@@ -212,6 +213,7 @@ if __name__ == "__main__":
         logging.info("Preparing trainer ...")
     
     metric = load_metric("rouge") 
+    
     def compute_metrics(eval_pred):
         predictions, labels = eval_pred
 
