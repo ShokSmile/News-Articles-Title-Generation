@@ -18,7 +18,7 @@ import logging
 
 ## parameters
 SPECIAL_TOKEN = "<|TG|>"
-HUB_TOKEN = "" # insert here your HB token if you want to use push to hub
+
 
 
 
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--train_data_path",
         type=str,
-        default="challenge_files/data/train.csv",
+        default="challenge_files/data/validation.csv",
         help="Path to unpreprocessed training data",
     )
     parser.add_argument(
@@ -78,6 +78,9 @@ if __name__ == "__main__":
         default=True,
         help="Use HF Hub to save model weights",
     )
+    parser.add_argument(
+        "--hub_token", type=str, default="", help="HF hub token"
+    )
     parser.add_argument("--batch_size", type=int, default=1, help="Size of batch")
     parser.add_argument(
         "--gradient_checkpointing",
@@ -90,7 +93,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--seed", type=int, default=7, help="Seed")
     parser.add_argument(
-        "--model_dir", type=str, default='../Model/llama-2-7b-dpn-lisi-ponticelli-peft-v1', help="Directory to save model"
+        "--model_dir", type=str, default='t5-small', help="Directory to save model"
     )
     parser.add_argument(
         "--name_of_wandb_project", type=str, default="INF582 2024 - News Articles Title Generation"
@@ -99,7 +102,7 @@ if __name__ == "__main__":
         "--model_max_length", type=int, default=1024, help="Model input max length"
     )
     parser.add_argument("--bf16", type=bool, default=False, help="Use bf16 type in case of Ampere gpu architecture")
-    parser.add_argument("--model_name", type=str, default="", help="Model name")
+    parser.add_argument("--model_name", type=str, default="t5-small", help="Model name")
 
     parser.add_argument("--predict_with_generate",
                         type=bool,
@@ -125,7 +128,6 @@ if __name__ == "__main__":
         logging.info("Tokenizer and data collator initialization...")
     
     tokenizer = AutoTokenizer.from_pretrained(sys_arg.model_checkpoint, 
-                                              trust_remote_code=True,
                                               model_max_length=sys_arg.model_max_length,
                                               truncation=True)
     tokenizer.add_special_tokens(
@@ -159,7 +161,7 @@ if __name__ == "__main__":
         save_strategy="steps",
         push_to_hub=sys_arg.push_to_hub,
         hub_model_id=sys_arg.model_name,
-        hub_token=HUB_TOKEN,
+        hub_token=sys_arg.hub_token,
         save_steps=sys_arg.eval_steps,
         learning_rate=4e-5,
         per_device_train_batch_size=sys_arg.batch_size,
@@ -177,7 +179,7 @@ if __name__ == "__main__":
         metric_for_best_model="rouge",
         seed=7,
         data_seed=7,
-        deepspeed="default_offload_opt_param.json",
+        # deepspeed="default_offload_opt_param.json",
     )
     
     if sys_arg.local_rank == 0:

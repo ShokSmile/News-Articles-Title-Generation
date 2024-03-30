@@ -12,7 +12,6 @@ def load_ordinary_model(
     path_to_model_weights: str,
     load_in_8bit: bool = False,
     load_in_4bit: bool = False,
-    model_max_length: int = 1024,
 ) -> T5ForConditionalGeneration:
 
     model = T5ForConditionalGeneration.from_pretrained(path_to_model_weights, 
@@ -27,7 +26,6 @@ def load_peft_model(
     LoRA: bool = True,
     load_in_8bit: bool = True,
     load_in_4bit: bool = False,
-    model_max_length: int = 1024,
 ) -> PeftModel:
     
 
