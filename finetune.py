@@ -1,17 +1,10 @@
+from utils.init_model import *
+from utils.dataset import TitleDataset
 from transformers import (
     AutoTokenizer,
-    DataCollatorForSeq2Seq,
     Seq2SeqTrainingArguments,
-    Seq2SeqTrainer,
-    T5ForConditionalGeneration,
-)
-from peft import (
-    LoraConfig,
-    TaskType,
-    get_peft_model,
-    prepare_model_for_int8_training,
-    PeftModel,
-    PeftConfig,
+    DataCollatorForSeq2Seq,
+    Seq2SeqTrainer
 )
 import numpy as np
 import pandas as pd
@@ -23,56 +16,26 @@ import argparse
 import deepspeed
 import logging
 
-###########################################
-# Parameters
-MODEL_CHECKPOINT = "t5-large"
-REAL_FILE_PATH = "Data/real_prompt_data.json"
-REAL_SYN_FILE_PATH = "Data/real-syn_prompt_data.json"
-PROBLEM_RETAINED_PATH = "Data/problem_retained_clusters.json"
-# right now it doesn't matter cause we fixed 25 samples (hardcode)
-VAL_SIZE = 0.05
-BATCH_SIZE = 16
-EVAL_STEPS = 100
-EPOCHS = 300
-INCLUDE_SYNTHETIC = False
-OUTPUT_MODE = "problem"
-MODEL_NAME = "113ex-dpn-desc" + OUTPUT_MODE + "-" + MODEL_CHECKPOINT.replace("ShokSmile/", "")
-MODEL_DIR = f"Models/{MODEL_NAME}"
-MODEL_MAX_LENGTH = 1024
-INCLUDE_DESCRIPTION = True
-TOKEN_PROBLEM = "<|pr|>"
-TOKEN_ROOT_CAUSE = "<|rc|>"
-TOKEN_SENTENCE = "<|sentence|>"
-SYN_TOKEN = "<syn>"
-PEFT = False
-LORA = False
-LoRA_PRETRAINED = False
-LoRA_PATH = "<path to be changed>"
-seed = 7
-os.environ["WANDB_PROJECT"] = "INF582 2024 - News Articles Title Generation"
-############################################
+## parameters
+SPECIAL_TOKEN = "<|TG|>"
+HUB_TOKEN = "" # insert here your HB token if you want to use push to hub
 
-# numpy seed fixation
-np.random.seed(seed)
-torch.manual_seed(seed)
-torch.cuda.manual_seed(seed)
 
-# tokenizer
-tokenizer = AutoTokenizer.from_pretrained(
-    MODEL_CHECKPOINT,
-    use_fast=False,
-    model_max_length=MODEL_MAX_LENGTH,
-    use_auth_token="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",
-)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Model finetuning for kaggle competition")
     parser.add_argument(
-        "--data_path",
+        "--train_data_path",
         type=str,
         default="challenge_files/data/train.csv",
-        help="Path to unpreprocessed data",
+        help="Path to unpreprocessed training data",
+    )
+    parser.add_argument(
+        "--validation_data_path",
+        type=str,
+        default="challenge_files/data/validation.csv",
+        help="Path to unpreprocessed validation data",
     )
     parser.add_argument(
         "--load_in_8bit", type=bool, default=True, help="If use 8bit quantization"
@@ -145,3 +108,117 @@ if __name__ == "__main__":
     sys_arg = parser.parse_args()
     sys_arg.deepspeed = True
     logging.getLogger().setLevel(logging.INFO)
+    
+    os.environ["WANDB_PROJECT"] = sys_arg.name_of_wandb_project
+    
+    # seed fixation
+    np.random.seed(sys_arg.seed)
+    torch.manual_seed(sys_arg.seed)
+    torch.cuda.manual_seed(sys_arg.seed)
+    
+    
+    #tokenizer initialization and 
+    if sys_arg.local_rank == 0:
+        logging.info("Tokenizer and data collator initialization...")
+    
+    tokenizer = AutoTokenizer.from_pretrained(sys_arg.model_checkpoint, 
+                                              trust_remote_code=True,
+                                              model_max_length=sys_arg.model_max_length,
+                                              truncation=True)
+    tokenizer.add_special_tokens(
+        {"additional_special_tokens": [SPECIAL_TOKEN]}
+    )
+    
+    data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer)
+    
+    #data initialization
+    if sys_arg.local_rank == 0:
+        logging.info("Preparing training and validation datasets ... ")
+    
+
+    train_data = TitleDataset(tokenizer=tokenizer,
+                              data_path=sys_arg.training_data_path)
+    
+    val_data = TitleDataset(tokenizer=tokenizer, 
+                              data_path=sys_arg.validation_data_path)
+    
+    #training args preparing
+    if sys_arg.local_rank == 0:
+        logging.info("Preparing training arguments ...")
+    
+    training_args = Seq2SeqTrainingArguments(
+        output_dir=sys_arg.model_dir,
+        run_name=sys_arg.model_name,
+        evaluation_strategy=sys_arg.evaluation_strategy,
+        eval_steps=sys_arg.eval_steps,
+        logging_strategy="steps",
+        logging_steps=sys_arg.eval_steps,
+        save_strategy="steps",
+        push_to_hub=sys_arg.push_to_hub,
+        hub_model_id=sys_arg.model_name,
+        hub_token=HUB_TOKEN,
+        save_steps=sys_arg.eval_steps,
+        learning_rate=4e-5,
+        per_device_train_batch_size=sys_arg.batch_size,
+        per_device_eval_batch_size=sys_arg.batch_size,
+        weight_decay=0.01,
+        save_total_limit=1,
+        num_train_epochs=sys_arg.nb_epochs,
+        predict_with_generate=sys_arg.predict_with_generate,
+        group_by_length=True,
+        generation_max_length=512,
+        bf16=sys_arg.bf16,
+        load_best_model_at_end=True,
+        report_to="wandb",
+        gradient_checkpointing=sys_arg.gradient_checkpointing,
+        metric_for_best_model="rouge",
+        seed=7,
+        data_seed=7,
+        deepspeed="default_offload_opt_param.json",
+    )
+    
+    if sys_arg.local_rank == 0:
+        logging.info("Preparing model ...")
+        
+    if sys_arg.peft:
+        if sys_arg.pretrained_peft:
+            model = load_pretrained_peft_model(
+                path_to_model_weights=sys_arg.path_to_model_weights,
+                model_type=sys_arg.model_type,
+                load_in_8bit=sys_arg.load_in_8bit,
+                load_in_4bit=sys_arg.load_in_4bit,
+                model_max_length=sys_arg.model_max_length,
+                path_to_peft_weights=sys_arg.path_to_peft_weights,
+            )
+        else:
+            model = load_peft_model(
+                path_to_weights=sys_arg.path_to_model_weights,
+                model_type=sys_arg.model_type,
+                load_in_8bit=sys_arg.load_in_8bit,
+                load_in_4bit=sys_arg.load_in_4bit,
+                model_max_length=sys_arg.model_max_length,
+            )
+
+    else:
+        model = load_ordinary_model(
+            path_to_model_weights=sys_arg.path_to_model_weights,
+            model_type=sys_arg.model_type,
+            load_in_8bit=sys_arg.load_in_8bit,
+            load_in_4bit=sys_arg.load_in_4bit,
+            model_max_length=sys_arg.model_max_length,
+        )
+        
+    if sys_arg.local_rank == 0:
+        logging.info("Preparing trainer ...")
+
+    trainer = Seq2SeqTrainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_data,
+        eval_dataset=val_data,
+        tokenizer=tokenizer,
+        data_collator=data_collator
+    )
+    
+    trainer.train()
+    trainer.save_model(sys_arg.model_dir)
